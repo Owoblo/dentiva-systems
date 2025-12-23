@@ -1,32 +1,68 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 type CalendlyWidgetProps = {
   url?: string;
+  prefill?: {
+    name?: string;
+    email?: string;
+    text?: string;
+  };
 };
 
-export default function CalendlyWidget({ url = 'https://calendly.com/johnowolabi/dentiva-discovery-call' }: CalendlyWidgetProps) {
+export default function CalendlyWidget({
+  url = 'https://calendly.com/johnowolabi/dentiva-discovery-call',
+  prefill
+}: CalendlyWidgetProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    // Load Calendly widget script
+    const scriptSrc = 'https://assets.calendly.com/assets/external/widget.js';
+    const container = containerRef.current;
+
+    if (!container) return;
+
+    // Helper to init widget
+    const initWidget = () => {
+      // @ts-ignore - Calendly is added to window
+      if (window.Calendly) {
+        // @ts-ignore
+        window.Calendly.initInlineWidget({
+          url,
+          parentElement: container,
+          prefill,
+          utm: {}
+        });
+      }
+    };
+
+    // Check if script is already loaded
+    if (document.querySelector(`script[src="${scriptSrc}"]`)) {
+      initWidget();
+      return;
+    }
+
+    // Load script if not present
     const script = document.createElement('script');
-    script.src = 'https://assets.calendly.com/assets/external/widget.js';
+    script.src = scriptSrc;
     script.async = true;
+    script.onload = initWidget;
     document.body.appendChild(script);
 
     return () => {
-      // Cleanup
-      document.body.removeChild(script);
+      // Cleanup if needed - mainly removing the container content to prevent duplicates if strict mode mounts twice
+      if (container) {
+        container.innerHTML = '';
+      }
     };
-  }, []);
+  }, [url, prefill]);
 
   return (
-    <div className="w-full h-full min-h-[700px]">
-      <div
-        className="calendly-inline-widget w-full h-full"
-        data-url={url}
-        style={{ minWidth: '320px', height: '100%' }}
-      />
-    </div>
+    <div
+      ref={containerRef}
+      className="calendly-inline-widget w-full"
+      style={{ minWidth: '320px', height: '700px' }}
+    />
   );
 }
